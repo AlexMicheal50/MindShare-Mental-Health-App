@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat with ChatGPT</title>
+    <!-- Include Tailwind CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-blue-200 to-blue-400">
+    <div class="text-center mb-8">
+        <!-- Create a big circle button with Tailwind classes -->
+        <button id="startButton" class="w-40 h-40 rounded-full bg-gradient-to-r from-green-400 to-blue-400 shadow-lg hover:scale-110 transform transition-transform ease-in-out duration-300 text-white font-bold text-lg">
+            Start
+        </button>
+    </div>
+
+    <div class="text-2xl text-green-700" id="output"></div>
+
+    <style>
+        .listening-animation {
+            animation: listeningAnimation 1s alternate infinite ease-in-out;
+        }
+
+        @keyframes listeningAnimation {
+            0% {
+                transform: scale(1);
+            }
+            100% {
+                transform: scale(1.1);
+            }
+        }
+
+        .output-text {
+            animation: textAnimation 0.5s forwards;
+            opacity: 0;
+        }
+
+        @keyframes textAnimation {
+            0% {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            100% {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+    </style>
+
+    <script>
+        if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+            const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+
+            const startButton = document.getElementById('startButton');
+            const outputElement = document.getElementById('output');
+
+            recognition.onstart = () => {
+                // Add a class to trigger the animation when speech recognition starts
+                startButton.classList.add('listening-animation');
+            };
+
+            recognition.onend = () => {
+                // Remove the class to stop the animation when speech recognition ends
+                startButton.classList.remove('listening-animation');
+
+                // Split the text into individual words
+                const text = outputElement.textContent;
+                const words = text.split(' ');
+
+                // Clear the output element
+                outputElement.innerHTML = '';
+
+                // Display each word one by one with animation
+                words.forEach((word, index) => {
+                    const span = document.createElement('span');
+                    span.textContent = word;
+                    span.className = 'output-text';
+                    span.style.animationDelay = `${index * 0.3}s`;
+                    outputElement.appendChild(span);
+                });
+
+                // Send user message to the backend (app.py)
+                fetch('/chat', {
+                    method: 'POST',
+                    body: JSON.stringify({ userMessage: text }),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const chatgptResponse = data.chatgptResponse;
+                    appendMessage('ChatGPT', chatgptResponse);
+
+                    // Read the text in the output element using the Speech Synthesis API
+                    const message = new SpeechSynthesisUtterance();
+                    message.text = chatgptResponse;
+                    window.speechSynthesis.speak(message);
+
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+            };
+
+            startButton.addEventListener('click', () => {
+                recognition.start();
+            });
+
+            recognition.onresult = (event) => {
+                const result = event.results[0][0].transcript;
+                outputElement.textContent = result;
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+            };
+        } else {
+            console.log('Speech recognition not supported in this browser.');
+        }
+    </script>
+</body>
+</html>
