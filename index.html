@@ -51,53 +51,42 @@
     <script>
         if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
             const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-
             const startButton = document.getElementById('startButton');
             const outputElement = document.getElementById('output');
 
             recognition.onstart = () => {
-                // Add a class to trigger the animation when speech recognition starts
                 startButton.classList.add('listening-animation');
             };
 
             recognition.onend = () => {
-                // Remove the class to stop the animation when speech recognition ends
                 startButton.classList.remove('listening-animation');
+                const spokenText = outputElement.textContent;
 
-                // Split the text into individual words
-                const text = outputElement.textContent;
-                const words = text.split(' ');
-
-                // Clear the output element
-                outputElement.innerHTML = '';
-
-                // Display each word one by one with animation
-                words.forEach((word, index) => {
-                    const span = document.createElement('span');
-                    span.textContent = word;
-                    span.className = 'output-text';
-                    span.style.animationDelay = `${index * 0.3}s`;
-                    outputElement.appendChild(span);
-                });
-
-                // Send user message to the backend (app.py)
-                fetch('/chat', {
+                // Send user message to ChatGPT API
+                fetch('https://api.openai.com/v1/engines/davinci/completions', {
                     method: 'POST',
-                    body: JSON.stringify({ userMessage: text }),
                     headers: {
-                        'Content-Type': 'application/json'
-                    }
+                        'Authorization': 'Bearer YOUR_API_KEY',
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        prompt: spokenText,
+                        max_tokens: 50,  // Adjust as needed
+                    }),
                 })
                 .then(response => response.json())
                 .then(data => {
-                    const chatgptResponse = data.chatgptResponse;
-                    appendMessage('ChatGPT', chatgptResponse);
+                    if (data.choices && data.choices.length > 0) {
+                        const chatgptResponse = data.choices[0].text;
+                        outputElement.textContent = chatgptResponse;
 
-                    // Read the text in the output element using the Speech Synthesis API
-                    const message = new SpeechSynthesisUtterance();
-                    message.text = chatgptResponse;
-                    window.speechSynthesis.speak(message);
-
+                        // Read the response using the Speech Synthesis API
+                        const message = new SpeechSynthesisUtterance();
+                        message.text = chatgptResponse;
+                        window.speechSynthesis.speak(message);
+                    } else {
+                        console.error('No response from ChatGPT.');
+                    }
                 })
                 .catch(error => {
                     console.error('Error:', error);
@@ -109,8 +98,12 @@
             });
 
             recognition.onresult = (event) => {
-                const result = event.results[0][0].transcript;
-                outputElement.textContent = result;
+                if (event.results.length > 0) {
+                    const result = event.results[0][0].transcript;
+                    outputElement.textContent = result;
+                } else {
+                    console.error('No speech results found.');
+                }
             };
 
             recognition.onerror = (event) => {
