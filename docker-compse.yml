@@ -1,0 +1,12 @@
+version: '3'
+services:
+  uvicorn-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: my-uvicorn-app
+    ports:
+      - "8000:8000"
+    # Add any other environment variables you need
+
+# Add other services or configurations as necessary
