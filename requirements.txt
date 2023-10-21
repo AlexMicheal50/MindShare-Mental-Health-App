@@ -1,0 +1,6 @@
+openai
+python-dotenv	
+Flask
+request
+jsonify
+os
