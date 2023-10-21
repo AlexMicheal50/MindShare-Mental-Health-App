@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speech-to-Text</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        #transcription {
+            margin: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Speech-to-Text</h1>
+    <button id="startRecording">Start Recording</button>
+    <button id="stopRecording" disabled>Stop Recording</button>
+    <div id="transcription"></div>
+    <div id="response"></div>
+
+
+    <script>
+        const startButton = document.getElementById("startRecording");
+        const stopButton = document.getElementById("stopRecording");
+        const transcriptionDiv = document.getElementById("transcription");
+        const responseDiv = document.getElementById("response")
+        let recognition = new webkitSpeechRecognition();
+
+        recognition.onresult = function(event) {
+            const result = event.results[0][0].transcript;
+            transcriptionDiv.textContent = result;
+        };
+
+        recognition.onend = function() {
+        startButton.disabled = false;
+        stopButton.disabled = true;
+
+        // Send the transcribed text to the server
+        const transcribedText = transcriptionDiv.textContent;
+        fetch('/process_transcription', {
+            method: 'POST',
+            body: JSON.stringify({
+                transcription: transcribedText
+            }),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log(data);
+            // Display the response in the "response" div
+            responseDiv.textContent = data.message; // Assuming the response has a "message" field
+        })
+        .catch(error => {
+            console.error(error);
+        });
+    };
+
+    startButton.addEventListener("click", function() {
+        recognition.start();
+        startButton.disabled = true;
+        stopButton.disabled = false;
+    });
+
+    stopButton.addEventListener("click", function() {
+        recognition.stop();
+        startButton.disabled = false;
+        stopButton.disabled = true;
+    });
+    </script>
+</body>
+</html>
